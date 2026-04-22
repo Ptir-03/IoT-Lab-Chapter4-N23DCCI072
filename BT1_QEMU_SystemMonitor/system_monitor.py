@@ -1,44 +1,42 @@
 import psutil
+import time
 from datetime import datetime
-from time import sleep
 
-log_file = open('system_log.txt', 'w')
+# Đường dẫn file log
+LOG_FILE = "system_monitor.log"
 
-try:
-    while True:
-        cpu_list = psutil.cpu_percent(interval=1, percpu=True)
-        cpu_avg = sum(cpu_list) / len(cpu_list)
-        ram = psutil.virtual_memory()
-        ram_used_mb = ram.used // (1024 ** 2)
-        ram_total_mb = ram.total // (1024 ** 2)
-        ram_pct = ram.percent
-        disk = psutil.disk_usage('/')
-        disk_pct = disk.percent
+def monitor_system():
+    with open(LOG_FILE, "a") as log_file:
+        while True:
+            # Thu thập dữ liệu
+            cpu_avg = psutil.cpu_percent(interval=1)
+            ram = psutil.virtual_memory()
+            ram_used_mb = ram.used // (1024 * 1024)
+            ram_total_mb = ram.total // (1024 * 1024)
+            ram_pct = ram.percent
+            disk_pct = psutil.disk_usage('/').percent
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # --- BƯỚC 7: LOGIC CẢNH BÁO ---
-        if cpu_avg >= 70:
-            status = 'CRITICAL'
-        elif cpu_avg >= 30:
-            status = 'WARNING'
-        else:
-            status = 'NORMAL'
+            # Xác định trạng thái cảnh báo
+            if cpu_avg > 80 or ram_pct > 80:
+                status = "CRITICAL"
+            elif cpu_avg > 50 or ram_pct > 50:
+                status = "WARNING"
+            else:
+                status = "OK"
 
-        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        # Thêm {status} vào cuối dòng line
-        line = f'[{now}] CPU: {cpu_avg:.1f}% | RAM: {ram_used_mb}/{ram_total_mb} MB ({ram_pct}%) | Disk: {disk_pct}% | {status}'
-        
-        print(line)
-        
-        # Nếu không phải NORMAL thì in thêm một dòng cảnh báo có icon tam giác
-        if status != 'NORMAL':
-            print(f'  ⚠️  {status}: CPU đang ở {cpu_avg:.1f}%')
+            # Ngắt dòng log để tránh lỗi E501 (dòng quá dài)
+            log_entry = f"[{now}] CPU: {cpu_avg:.1f}% | RAM: {ram_used_mb}/{ram_total_mb} MB " \
+                        f"({ram_pct}%) | Disk: {disk_pct}% | {status}"
 
-        log_file.write(line + '\n')
-        log_file.flush() 
-        sleep(2)
+            print(log_entry)
+            log_file.write(log_entry + "\n")
+            log_file.flush()  # Đảm bảo dữ liệu được ghi ngay lập tức
+            time.sleep(1)
 
-except KeyboardInterrupt:
-    print('\nDừng giám sát.')
-finally:
-    log_file.close()
-    print('Log saved to system_log.txt')
+if __name__ == "__main__":
+    print("He thong dang giam sat... Nhan Ctrl+C de dung.")
+    try:
+        monitor_system()
+    except KeyboardInterrupt:
+        print("\nDa dung giam sat.")
